@@ -137,6 +137,7 @@ class Player:
             self.grab_velocity.y = 0
             self.player_collide = False
             self.grab_lock = False
+            self.stored_grab = False
 
         elif (self.arm_collide == True and mouse_key[0] == True):
             self.gravity = 0
