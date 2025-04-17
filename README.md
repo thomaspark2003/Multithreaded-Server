@@ -1,2 +1,2 @@
 # Platformer-Game
-Vertical platformer made in Pygame
+Platformer made in Pygame; Focus on kinematics
