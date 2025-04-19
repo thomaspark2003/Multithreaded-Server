@@ -14,7 +14,6 @@ class Player:
 
         self.player_image = pygame.image.load('images/player_sprite.png')
         self.arm = pygame.image.load('images/arm_prototype.png')
-        self.arm_pivot_img = pygame.image.load('images/arm_pivot_offset.png')
 
         self.arm_rect = self.arm.get_rect()
         self.arm_limit = 480
@@ -45,7 +44,7 @@ class Player:
 
         self.velocity_y = 0
         self.acceleration_y = 200
-        self.gravity = 1500
+        self.gravity = 1000
 
         self.jump = False
     
@@ -56,6 +55,25 @@ class Player:
         self.grab_mask_img = self.grab_mask.to_surface(setcolor=(255, 255, 255), unsetcolor=(0, 0, 0, 0))
         self.grab_coords = [0,0]
         self.grab_lock = False
+        self.let_go = False
+
+        self.grab_object2 = pygame.image.load('images/test_grab.png')
+        self.grab_object3 = pygame.image.load('images/test_grab.png')
+        self.grab_rect2 = self.grab_object2.get_rect()
+        self.grab_rect3 = self.grab_object3.get_rect()
+        self.grab_rect2.center = (250,250)
+        self.grab_rect3.center = (1200,350)
+
+        self.grab_mask2 = pygame.mask.from_surface(self.grab_object2)
+        self.grab_mask3 = pygame.mask.from_surface(self.grab_object3)
+        self.grab_mask_img2 = self.grab_mask.to_surface(setcolor=(255, 255, 255), unsetcolor=(0, 0, 0, 0))
+        self.grab_mask_img3 = self.grab_mask.to_surface(setcolor=(255, 255, 255), unsetcolor=(0, 0, 0, 0))
+
+        self.overlap_count = 0
+
+        self.mouse_lock = False
+        self.mouse_count = True
+        self.mouse_lock_vec = pygame.math.Vector2()
 
         self.scroll = 0
         self.previous_time = time.time()
@@ -97,6 +115,8 @@ class Player:
         if (self.grab_lock == True):
             pivot2 = pygame.math.Vector2(self.grab_coords[0], self.grab_coords[1])
             grab_vec = pivot2 - pivot
+            #if (grab_vec.length() > 400):
+            #    grab_vec.scale_to_length(400)
             object_to_arm_len = grab_vec.length()
             angle = -math.degrees(math.atan2(grab_vec.x, grab_vec.y))
         else:
@@ -110,6 +130,8 @@ class Player:
         scale_arm = self.arm
 
         self.screen.blit(self.grab_mask_img, self.grab_rect)
+        self.screen.blit(self.grab_mask_img2, self.grab_rect2)
+        self.screen.blit(self.grab_mask_img3, self.grab_rect3)
 
         scale_arm = pygame.transform.scale(self.arm, (int(self.arm.get_width()), self.inc_scale_arm))
 
@@ -120,37 +142,81 @@ class Player:
         mouse_length = math.hypot(mouse_to_arm_x,mouse_to_arm_y)
 
         if (mouse_key[0] == True and self.arm_collide == False):
+
+            self.mouse_lock = True
+
+            if (self.let_go == True and self.grab_velocity.length_squared() > 0.01):
+                damping = 0.985
+                self.grab_velocity *= damping
+                self.img_pos[0] += self.grab_velocity.x * self.dt
+                self.img_pos[1] += self.grab_velocity.y * self.dt
+
             if (self.inc_scale_arm >= mouse_length):
-                self.inc_scale_arm = mouse_length
+                self.inc_scale_arm = min(mouse_length, 300)
+                self.stored_grab = True
+            elif (self.inc_scale_arm >= 1000):
+                self.inc_scale_arm = 1000
                 self.stored_grab = True
             
             if (self.stored_grab == True and self.inc_scale_arm > 20):
-                self.inc_scale_arm -= 900 * self.dt
+                self.inc_scale_arm -= 1200 * self.dt
             elif (self.stored_grab == False):
-                self.inc_scale_arm += 900 * self.dt
+                self.inc_scale_arm += 1700 * self.dt
+
 
         elif (mouse_key[0]== False):
-            self.gravity = 1500
+            self.gravity = 1000
             self.inc_scale_arm = 20
             self.arm_collide = False
-            self.grab_velocity.x = 0
-            self.grab_velocity.y = 0
             self.player_collide = False
             self.grab_lock = False
             self.stored_grab = False
+            self.overlap_count = 0
+            self.mouse_lock = False
+            self.mouse_count = 0
+
+            if (self.inc_scale_arm == 20):
+                self.mouse_lock = False
+
+            if (self.let_go == True and self.grab_velocity.length_squared() > 0.01):
+                damping = 0.985
+                self.grab_velocity *= damping
+                self.img_pos[0] += self.grab_velocity.x * self.dt
+                self.img_pos[1] += self.grab_velocity.y * self.dt
 
         elif (self.arm_collide == True and mouse_key[0] == True):
             self.gravity = 0
+            self.velocity_y = 0
             follow_mouse = pygame.math.Vector2(self.grab_coords[0], self.grab_coords[1])
             player_center = pygame.math.Vector2(self.img_pos[0], self.img_pos[1])
-            mouse_dir = (follow_mouse-player_center).normalize()
+            to_mouse = follow_mouse-player_center
+            distance = to_mouse.length()
+
+            if (distance > 300):
+                to_mouse.scale_to_length(300)
+
+            mouse_dir = (to_mouse).normalize()
 
             self.inc_scale_arm = object_to_arm_len
             self.grab_velocity += mouse_dir * self.grab_acceleration * self.dt
             self.img_pos[0] += self.grab_velocity.x * self.dt
             self.img_pos[1] += self.grab_velocity.y * self.dt
+            self.let_go = True
+            self.grab_velocity *= 0.99
 
+ 
+        if (self.mouse_lock == True):
+            if (self.mouse_count == 0):
+                self.mouse_lock_vec.x = mouse_posx
+                self.mouse_lock_vec.y = mouse_posy
+                self.mouse_count += 1
 
+            mouse_to_arm = self.mouse_lock_vec - self.rect.center
+            mouse_to_arm_len = mouse_to_arm.length()
+
+            if (self.inc_scale_arm > mouse_to_arm_len):
+                self.stored_grab = True
+            
 
         rotate_mask = pygame.mask.from_surface(rotate_img)
         rotate_mask_img = rotate_mask.to_surface(setcolor=(255, 255, 255), unsetcolor=(0, 0, 0, 0))
@@ -186,8 +252,6 @@ class Player:
             self.right_wall_rect = right_wall_rect
             self.floor_rect = floor_rect
 
-            overlap_count = 0
-
             if axis == 'horizontal':
                     
                 if self.left_wall_rect.colliderect(self.rect):
@@ -200,17 +264,44 @@ class Player:
                     self.img_pos[0] = self.rect.x
                     self.player_collide = True
 
-                mask_offset_x = rotate_rect.left - self.grab_rect.x
-                mask_offset_y = rotate_rect.top - self.grab_rect.y
-                if (grab_mask.overlap(rotate_mask, (mask_offset_x, mask_offset_y)) and overlap_count == 0):
-                    temp_mask = grab_mask.overlap_mask(rotate_mask, (mask_offset_x, mask_offset_y))
+                mask_offset_x1 = rotate_rect.left - self.grab_rect.x
+                mask_offset_y1 = rotate_rect.top - self.grab_rect.y
+
+                mask_offset_x2 = rotate_rect.left - self.grab_rect2.x
+                mask_offset_y2 = rotate_rect.top - self.grab_rect2.y
+
+                mask_offset_x3 = rotate_rect.left - self.grab_rect3.x
+                mask_offset_y3 = rotate_rect.top - self.grab_rect3.y
+
+                if (grab_mask.overlap(rotate_mask, (mask_offset_x1, mask_offset_y1)) and self.overlap_count == 0):
+                    temp_mask = grab_mask.overlap_mask(rotate_mask, (mask_offset_x1, mask_offset_y1))
                     self.arm_collide = True
 
                     overlap_rects = temp_mask.get_bounding_rects()
                     self.grab_coords[0] = overlap_rects[0].x + self.grab_rect.x
                     self.grab_coords[1] = overlap_rects[0].y + self.grab_rect.y
                     self.grab_lock = True
-                    overlap_count += 1
+                    self.overlap_count += 1
+                    #self.screen.blit(temp_mask.to_surface(setcolor=(255,0,0,255), unsetcolor=(0,0,0,0)), (self.grab_rect.topleft))
+                elif (self.grab_mask2.overlap(rotate_mask, (mask_offset_x2, mask_offset_y2)) and self.overlap_count == 0):
+                    temp_mask = grab_mask.overlap_mask(rotate_mask, (mask_offset_x2, mask_offset_y2))
+                    self.arm_collide = True
+
+                    overlap_rects = temp_mask.get_bounding_rects()
+                    self.grab_coords[0] = overlap_rects[0].x + self.grab_rect2.x
+                    self.grab_coords[1] = overlap_rects[0].y + self.grab_rect2.y
+                    self.grab_lock = True
+                    self.overlap_count += 1
+                    #self.screen.blit(temp_mask.to_surface(setcolor=(255,0,0,255), unsetcolor=(0,0,0,0)), (self.grab_rect.topleft))
+                elif (self.grab_mask3.overlap(rotate_mask, (mask_offset_x3, mask_offset_y3)) and self.overlap_count == 0):
+                    temp_mask = grab_mask.overlap_mask(rotate_mask, (mask_offset_x3, mask_offset_y3))
+                    self.arm_collide = True
+
+                    overlap_rects = temp_mask.get_bounding_rects()
+                    self.grab_coords[0] = overlap_rects[0].x + self.grab_rect3.x
+                    self.grab_coords[1] = overlap_rects[0].y + self.grab_rect3.y
+                    self.grab_lock = True
+                    self.overlap_count += 1
                     #self.screen.blit(temp_mask.to_surface(setcolor=(255,0,0,255), unsetcolor=(0,0,0,0)), (self.grab_rect.topleft))
 
             if axis == 'vertical':
@@ -220,6 +311,9 @@ class Player:
                         self.img_pos[1] = self.rect.y
                         self.velocity_y = 0
                         self.jump = True
+                        self.let_go = False
+                        self.grab_velocity.x = 0
+                        self.grab_velocity.y = 0
 
 class Objects:
     def __init__(self, width, height, screen):
@@ -240,7 +334,7 @@ class Objects:
 
         self.floor = pygame.image.load('images/sprite_floor_collision.jpg')
         self.floor_rect = self.floor.get_rect()
-        self.floor_rect.topleft = (0, self.height/1.5)
+        self.floor_rect.topleft = (0, self.height/1.25)
 
     def update(self):
 
