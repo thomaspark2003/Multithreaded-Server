@@ -3,6 +3,7 @@ import sys
 from sprites import Player
 from sprites import Objects
 from sprites import Camera
+from sprites import GrabObject
 import time
 from debug import debug
 
@@ -28,6 +29,10 @@ class Game:
         
         self.running = True
 
+        self.grab_obj = GrabObject(self.SCREEN_WIDTH, self.SCREEN_HEIGHT, self.game_window, self.camera, self.char, 800)
+        self.grab_obj2 = GrabObject(self.SCREEN_WIDTH, self.SCREEN_HEIGHT, self.game_window, self.camera, self.char, 300)
+        self.grab_obj3 = GrabObject(self.SCREEN_WIDTH, self.SCREEN_HEIGHT, self.game_window, self.camera, self.char, 1300)
+
     def run(self):
         while self.running:
 
@@ -43,7 +48,12 @@ class Game:
 
             self.char.move(self.objects.floor_rect, self.objects.left_wall_rect, self.objects.left_wall_mask, self.camera)
             self.objects.update(self.camera, self.char)
-            self.camera.object_offset(self.objects, self.char)
+            self.grab_obj.generateObj()
+            self.grab_obj2.generateObj()
+            self.grab_obj3.generateObj()
+            self.camera.object_offset(self.objects, self.char, self.grab_obj)
+            self.camera.object_offset(self.objects, self.char, self.grab_obj2)
+            self.camera.object_offset(self.objects, self.char, self.grab_obj3)
             
             pygame.display.update()
 
