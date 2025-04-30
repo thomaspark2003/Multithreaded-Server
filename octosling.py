@@ -38,12 +38,16 @@ class Game:
         self.store_score = 0
         self.store_high_score = 0
         self.store_cond = False
+        self.prev_score = 0
 
         self.prev_grab_x = 0
         self.cur_grab_x = 0
 
-        self.prev_grab_id = 0
-        self.cur_grab_id = 0
+        self.max_grab_x = 0
+
+        self.dict_store_grab = {}
+        self.grab_cond = True
+        
 
     def run(self):
         while self.running:
@@ -62,6 +66,10 @@ class Game:
                 if (self.store_high_score < self.store_score):
                     self.store_high_score = self.store_score
                 self.store_score = 0
+                self.max_dist = 0
+                self.prev_player_rect_x = 0
+                self.max_grab_x = 0
+                self.dict_store_grab.clear()
                 self.fall = True
 
             if (self.fall == True):
@@ -107,17 +115,26 @@ class Game:
 
                 if (self.char.arm_collide and self.store_cond == False):
 
+                    self.prev_grab_x = self.cur_grab_x
                     self.cur_grab_x = self.char.grab_coords[0]
 
-                    if (abs(self.cur_grab_x - self.prev_grab_x) > 40 or self.store_score == 0):
-                        self.prev_grab_x = self.cur_grab_x
+                    if (self.cur_grab_x > self.max_grab_x):
+                        self.max_grab_x = self.cur_grab_x
+
+                    for i in range(self.cur_grab_x-40, self.cur_grab_x+40):
+                        if i in self.dict_store_grab:
+                            self.grab_cond = False
+
+                    if ((abs(self.cur_grab_x - self.prev_grab_x) > 40 and self.prev_grab_x != self.max_grab_x and self.grab_cond) or self.store_score == 0):
                         self.store_score += 1
+                        self.dict_store_grab[self.cur_grab_x] = self.store_score
 
                     self.store_cond = True
                 elif (self.char.arm_collide == False):
                     self.store_cond = False
-                    
-            debug(f"Score: {self.store_score} High Score: {self.store_high_score}", self.game_window)
+                    self.grab_cond = True
+
+            debug(f"Score: {self.store_score} High Score: {self.store_high_score} max: {self.max_grab_x} cur: {self.cur_grab_x} cond: {self.grab_cond}", self.game_window)
 
             pygame.display.update()
 
