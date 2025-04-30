@@ -33,7 +33,9 @@ class Camera:
         self.cam_offset_prev = 0
         self.cam_cond = 0
 
-    def object_offset(self, objects, player, grab_obj):
+        self.prev_offset_val = 0
+
+    def object_offset(self, objects, player, grab_obj, fall):
 
         leftwall_rect = objects.left_wall_rect
         coral_rect = objects.red_corals_rect
@@ -56,12 +58,10 @@ class Camera:
         elif (player_rect.x > self.prev_value):
             self.camera_off = False
             self.prev_cond = False
-        
 
 class Player:
-    def __init__(self, screen, rect, width, height, grab_rect, grab_mask):
+    def __init__(self, screen, width, height, grab_rect, grab_mask):
         self.screen = screen
-        self.rect = rect
         self.width = width
         self.height = height
 
@@ -86,7 +86,8 @@ class Player:
 
         self.img_pos = [self.width//2, self.height//2]
         self.rect = self.player_image.get_rect()
-        self.rect.topleft = round(self.img_pos[0]), round(self.img_pos[1])
+        self.rect.centerx = self.img_pos[0]
+        self.rect.y = self.img_pos[1]
 
         self.collision_count = 0
 
@@ -122,6 +123,8 @@ class Player:
 
         self.store_prev_mouse_x = None
         self.mouse_cond = False
+
+        self.count_fall = 0
     
     def rotate(self, arm_img, angle, pivot, offset, mouse_key, inc_scale_arm, camera):
 
@@ -134,7 +137,7 @@ class Player:
 
         return rotate_arm_img, rotate_rect
 
-    def move(self, floor_rect, leftwall_rect, leftwall_mask, camera):
+    def move(self, floor_rect, leftwall_rect, leftwall_mask, camera, fall):
 
         self.dt = time.time() - self.previous_time
         self.previous_time = time.time()
@@ -170,7 +173,9 @@ class Player:
 
         scale_arm = self.arm
 
-        scale_arm = pygame.transform.scale(self.arm, (int(self.arm.get_width()), self.inc_scale_arm))
+        width = max(1, int(self.arm.get_width()))
+        height = max(1, self.inc_scale_arm)
+        scale_arm = pygame.transform.scale(self.arm, (width, height))
 
         rotate_img, rotate_rect = self.rotate(scale_arm, angle, pivot, offset, mouse_key, self.inc_scale_arm, camera)
         self.rotate_rect = rotate_rect
@@ -213,7 +218,6 @@ class Player:
             self.overlap_count = 0
             self.mouse_lock = False
             self.mouse_count = 0
-            #camera.prev_cond = False
 
             if (self.inc_scale_arm == 20):
                 self.mouse_lock = False
@@ -257,7 +261,8 @@ class Player:
 
             if (self.inc_scale_arm > mouse_to_arm_len):
                 self.stored_grab = True
-            
+        
+        self.border_collision('horizontal', leftwall_rect, floor_rect, camera)
 
         rotate_mask = pygame.mask.from_surface(rotate_img)
         self.rotate_mask = rotate_mask
@@ -271,12 +276,12 @@ class Player:
         if key[pygame.K_a] and self.arm_collide:
             self.img_pos[0] -= self.acceleration_x * self.dt
             self.rect.x = round(self.img_pos[0])
-            self.border_collision('horizontal', leftwall_rect, floor_rect)
+            self.border_collision('horizontal', leftwall_rect, floor_rect, camera)
 
         elif key[pygame.K_d] and self.arm_collide:
             self.img_pos[0] += self.acceleration_x * self.dt
             self.rect.x = round(self.img_pos[0])
-            self.border_collision('horizontal', leftwall_rect, floor_rect)
+            self.border_collision('horizontal', leftwall_rect, floor_rect, camera)
 
         if key[pygame.K_w] and self.jump == True and self.velocity_y > -400:
             self.velocity_y -= 2000 * self.dt
@@ -284,9 +289,10 @@ class Player:
             self.velocity_y += self.gravity  * self.dt
             self.jump = False
 
-        self.img_pos[1] += self.velocity_y * self.dt
-        self.rect.topleft = round(self.img_pos[0]), round(self.img_pos[1])
-        self.border_collision('vertical', leftwall_rect, floor_rect)
+        if (not fall):
+            self.img_pos[1] += self.velocity_y * self.dt
+            self.rect.topleft = round(self.img_pos[0]), round(self.img_pos[1])
+            self.border_collision('vertical', leftwall_rect, floor_rect, camera)
 
         if (camera.camera_off):
             self.screen.blit(self.player_image, (self.rect.x-camera.cam_offset_prev, self.rect.y))
@@ -298,7 +304,7 @@ class Player:
 
             self.screen.blit(rotate_img, (rotate_rect.x-camera.offset.x, rotate_rect.y))
 
-    def border_collision(self, axis, left_wall_rect, floor_rect):
+    def border_collision(self, axis, left_wall_rect, floor_rect, camera):
         
 
             self.left_wall_rect = left_wall_rect
@@ -326,19 +332,20 @@ class Player:
 
         rotate_mask_img = rotate_mask.to_surface(setcolor=(255, 255, 255), unsetcolor=(0, 0, 0, 0))
 
-        mask_offset_x = rotate_rect.left - (grab_rect.x+object_offset_x)
-        mask_offset_y = rotate_rect.top - grab_rect.y
+        if (grab_rect.x > 800):
+            mask_offset_x = rotate_rect.left - (grab_rect.x+object_offset_x)
+            mask_offset_y = rotate_rect.top - grab_rect.y
 
-        if (grab_mask.overlap(rotate_mask, (mask_offset_x, mask_offset_y)) and self.overlap_count == 0):
-            
-            temp_mask = grab_mask.overlap_mask(rotate_mask, (mask_offset_x, mask_offset_y))
-            self.arm_collide = True
+            if (grab_mask.overlap(rotate_mask, (mask_offset_x, mask_offset_y)) and self.overlap_count == 0):
+                
+                temp_mask = grab_mask.overlap_mask(rotate_mask, (mask_offset_x, mask_offset_y))
+                self.arm_collide = True
 
-            overlap_rects = temp_mask.get_bounding_rects()
-            self.grab_coords[0] = overlap_rects[0].x + (grab_rect.x+object_offset_x)
-            self.grab_coords[1] = overlap_rects[0].y + grab_rect.y
-            self.grab_lock = True
-            self.overlap_count += 1
+                overlap_rects = temp_mask.get_bounding_rects()
+                self.grab_coords[0] = overlap_rects[0].x + (grab_rect.x+object_offset_x)
+                self.grab_coords[1] = overlap_rects[0].y + grab_rect.y
+                self.grab_lock = True
+                self.overlap_count += 1
 
 class Objects:
     def __init__(self, width, height, screen, background_img):
@@ -364,7 +371,8 @@ class Objects:
 
         self.floor = pygame.image.load('images/sprite_floor_collision.jpg')
         self.floor_rect = self.floor.get_rect()
-        self.floor_rect.topleft = (-1000, self.height/1.25)
+        self.floor_rect.x = -1000
+        self.floor_rect.y = self.height/1.25
 
         self.grab_object = pygame.image.load('images/test_grab.png')
         self.grab_rect = self.grab_object.get_rect()
@@ -404,8 +412,6 @@ class Objects:
 
     def update(self, camera, player):
 
-        #self.screen.blit(self.background_img, self.background_rect)
-
         self.screen.blit(self.left_wall, self.left_wall_rect)
 
         if (camera.camera_off):
@@ -417,7 +423,7 @@ class Objects:
             self.screen.blit(self.floor, (self.floor_rect.x-camera.offset.x, self.floor_rect.y))
 
             self.screen.blit(self.red_corals, (self.red_corals_rect.x-camera.offset.x, self.red_corals_rect.y))
-        
+    
 
 class GrabObject:
     def __init__(self, width, height, screen, camera, player, posx):
@@ -425,6 +431,7 @@ class GrabObject:
         self.width = width
         self.height = height
         self.screen = screen
+        self.posx = posx
 
         self.grab_object = pygame.image.load('images/test_grab.png')
         self.grab_rect = self.grab_object.get_rect()
@@ -452,9 +459,18 @@ class GrabObject:
 
         self.player.mask_collision(self.player.rotate_mask, self.grab_mask, self.player.rotate_rect, self.grab_rect, self.object_offset_x, self.camera)
 
-        if (self.camera.camera_off):
-            self.screen.blit(self.grab_mask_img, ((self.grab_rect.x-self.camera.cam_offset_prev), self.grab_rect.y))
-        else:
-            self.screen.blit(self.grab_mask_img, ((self.grab_rect.x-self.camera.offset.x), self.grab_rect.y))
+        if (self.grab_rect.x > 800):
+            if (self.camera.camera_off):
+                self.screen.blit(self.grab_mask_img, ((self.grab_rect.x-self.camera.cam_offset_prev), self.grab_rect.y))
+            else:
+                self.screen.blit(self.grab_mask_img, ((self.grab_rect.x-self.camera.offset.x), self.grab_rect.y))
 
-        debug(self.grab_rect.x-self.camera.offset.x, self.screen)
+
+class Enemy:
+    def __init__(self, width, height, screen):
+        pass
+
+    def randomize(self):
+        pass
+
+
