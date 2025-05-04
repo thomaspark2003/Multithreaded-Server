@@ -67,7 +67,7 @@ class Player:
 
         self.mouseposx, self.mouseposy = pygame.mouse.get_pos()
 
-        self.player_image = pygame.image.load('images/player_sprite3.png')
+        self.player_image = pygame.image.load('images/player_sprite5.png')
         self.arm = pygame.image.load('images/arm_prototype.png')
 
         self.arm_rect = self.arm.get_rect()
@@ -384,10 +384,6 @@ class Objects:
         self.red_corals = pygame.image.load('images/red_corals.png')
         self.red_corals_rect = self.red_corals.get_rect()
         self.red_corals_rect.center = (700, 665)
-
-        self.pillar = pygame.image.load('images/pillar1.png')
-        self.pillar_rect = self.pillar.get_rect()
-        self.pillar_rect.center = (700, 585)
 
         self.random_num = random.randrange(200,900)
 
