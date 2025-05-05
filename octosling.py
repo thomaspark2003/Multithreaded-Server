@@ -1,5 +1,7 @@
 import pygame
 import sys
+import socket
+import struct
 from sprites import Player
 from sprites import Objects
 from sprites import Camera
@@ -13,13 +15,18 @@ class Game:
         pygame.init()
 
         pygame.display.set_caption('Octo Sling')
+
         desktop_info = pygame.display.Info()
         self.SCREEN_WIDTH, self.SCREEN_HEIGHT = desktop_info.current_w, desktop_info.current_h
 
         self.clock = pygame.time.Clock()
-        self.game_window = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), pygame.FULLSCREEN)
+        #self.game_window = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), pygame.RESIZABLE)
+        self.game_window = pygame.display.set_mode((1280, 720))
 
-        self.background_img = pygame.image.load('images/background_doubled.png').convert()
+        self.background_img = pygame.image.load('images/background_water.png').convert()
+        self.background_img = pygame.transform.scale(self.background_img, (self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
+        self.back_rect = self.background_img.get_rect()
+        self.back_rect.topleft = (0,0)
 
         self.objects = Objects(self.SCREEN_WIDTH, self.SCREEN_HEIGHT, self.game_window, self.background_img)
         self.char = Player(self.game_window, self.SCREEN_WIDTH, self.SCREEN_HEIGHT, self.objects.grab_rect, self.objects.grab_mask)
@@ -47,10 +54,26 @@ class Game:
 
         self.dict_store_grab = {}
         self.grab_cond = True
-        
+
+        self.score_inc = False
+
+        self.list_of_crab = [0,0,0]
+        self.score_check = False
+
 
     def run(self):
+
+        client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_sock.connect(("localhost", 8080))
+
+        #server_data = client_sock.recv(1024)
+
+        #print(f"Received from server: {server_data}")
+
         while self.running:
+
+            test_rect_x = self.char.rect.x
+            client_sock.sendall(struct.pack("!f", test_rect_x))
 
             self.game_window.fill((2, 0, 68))
 
@@ -62,6 +85,8 @@ class Game:
 
             self.clock.tick(60)
 
+            self.game_window.blit(self.background_img, self.back_rect)
+
             if (self.char.rect.y > 1100):
                 if (self.store_high_score < self.store_score):
                     self.store_high_score = self.store_score
@@ -71,6 +96,9 @@ class Game:
                 self.max_grab_x = 0
                 self.dict_store_grab.clear()
                 self.fall = True
+                self.list_of_crab[0] = 0
+                self.list_of_crab[1] = 0
+                self.list_of_crab[2] = 0
 
             if (self.fall == True):
 
@@ -102,6 +130,7 @@ class Game:
                 
                 self.fall = False
 
+
             elif(self.fall == False):
                 
                 self.char.move(self.objects.floor_rect, self.objects.left_wall_rect, self.objects.left_wall_mask, self.camera, self.fall)
@@ -109,10 +138,10 @@ class Game:
                 self.grab_obj.generateObj()
                 self.grab_obj2.generateObj()
                 self.grab_obj3.generateObj()
-                self.camera.object_offset(self.objects, self.char, self.grab_obj, self.fall)
-                self.camera.object_offset(self.objects, self.char, self.grab_obj2, self.fall)
-                self.camera.object_offset(self.objects, self.char, self.grab_obj3, self.fall)
-
+                #self.camera.object_offset(self.objects, self.char, self.grab_obj, self.fall)
+                #self.camera.object_offset(self.objects, self.char, self.grab_obj2, self.fall)
+                #self.camera.object_offset(self.objects, self.char, self.grab_obj3, self.fall)
+                
                 if (self.char.arm_collide and self.store_cond == False):
 
                     self.prev_grab_x = self.cur_grab_x
@@ -126,20 +155,27 @@ class Game:
                             self.grab_cond = False
 
                     if ((abs(self.cur_grab_x - self.prev_grab_x) > 40 and self.prev_grab_x != self.max_grab_x and self.grab_cond) or self.store_score == 0):
-                        self.store_score += 1
+                        self.score_inc = False          
                         self.dict_store_grab[self.cur_grab_x] = self.store_score
 
                     self.store_cond = True
                 elif (self.char.arm_collide == False):
                     self.store_cond = False
                     self.grab_cond = True
+                
 
-            debug(f"Score: {self.store_score} High Score: {self.store_high_score} max: {self.max_grab_x} cur: {self.cur_grab_x} cond: {self.grab_cond}", self.game_window)
+                if ((self.grab_obj3.check_crab_coll or self.grab_obj2.check_crab_coll or self.grab_obj.check_crab_coll) and self.score_inc == False):
+                    self.store_score += 1
+                    self.score_inc = True
+ 
+            #debug(f"Score: {self.store_score} High Score: {self.store_high_score}", self.game_window)
+            debug(self.char.rect.x, self.game_window)
 
             pygame.display.update()
 
+
 def main():
     Game().run()
-
+ 
 if __name__ == "__main__":
     main()
