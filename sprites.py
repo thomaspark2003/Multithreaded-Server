@@ -407,6 +407,10 @@ class Objects:
         self.yellow_corals_rect = self.yellow_corals.get_rect()
         self.yellow_corals_rect.center = (200, 665)
 
+        self.pillar = pygame.image.load('images/pillar1.png')
+        self.pillar_rect = self.pillar.get_rect()
+        self.pillar_rect.center = (700, 585)
+
         self.random_num = random.randrange(200,900)
 
         self.player_center_offset_x = 0
