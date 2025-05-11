@@ -159,6 +159,8 @@ class Game:
 
             client_sock.sendall(struct.pack("!B", int(self.camera.camera_off)))
 
+            #client_sock.sendall(struct.pack("!ffBffffffffB"), mouse_posx, mouse_posy, int(left_key), rect_x, rect_y, arm_angle, self.arm_pivotx, self.arm_pivoty, arm_inc_num, self.offsetx, self.offsety, int(self.camera.camera_off))
+
             player2_mousex = client_sock.recv(4)
             player2_mouse_posx = struct.unpack("!f", player2_mousex)
 
