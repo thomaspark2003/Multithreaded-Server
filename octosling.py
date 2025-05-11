@@ -49,6 +49,13 @@ class Game:
         self.rotate_mask = pygame.mask.from_surface(self.rotate_img)
         self.rotate_mask_img = self.rotate_mask.to_surface(setcolor=(100, 156, 252), unsetcolor=(0, 0, 0, 0))
 
+        self.hook = pygame.image.load('images/hook_sprite.png')
+        self.hook = pygame.transform.scale(self.hook, (50,50))
+        self.hook_rect = self.hook.get_rect()
+        self.hook_rect.y = 300
+        self.hook_mask = pygame.mask.from_surface(self.hook)
+        self.hook_mask_img = self.hook_mask.to_surface(setcolor=(255, 255, 255), unsetcolor=(0, 0, 0, 0))
+
         self.store_score = 0
         self.store_high_score = 0
         self.store_cond = False
@@ -81,6 +88,26 @@ class Game:
         self.offsetx = 0
         self.offsety = 0
 
+        self.hookx = 800
+        self.hooky = 0
+        self.world_hooks = []
+
+        self.stop_spawn = False
+        self.race_width = self.SCREEN_WIDTH*5
+
+        self.obj_rod = pygame.image.load('images/fish_rod.png')
+        self.obj_rod = pygame.transform.scale(self.obj_rod, (50, 500))
+        self.rod_rect = self.obj_rod.get_rect()
+        self.rod_rect.x = self.hookx+5
+
+        self.finish_line = pygame.image.load('images/finish_line.png')
+        self.finish_rect = self.finish_line.get_rect()
+        self.complete = False
+
+    def spawnHook(self, curx, cury):
+        cur_data = [curx, cury]
+        self.world_hooks.append(cur_data)
+
     def run(self):
 
         client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -91,6 +118,7 @@ class Game:
         player_num = player_num[0] #use player_num on .move for self.char (could be 1 or 2)
 
         while self.running:
+
             mouse_key = pygame.mouse.get_pressed()
             left_key = mouse_key[0]
 
@@ -129,6 +157,8 @@ class Game:
 
             client_sock.sendall(struct.pack("!f", self.offsety))
 
+            client_sock.sendall(struct.pack("!B", int(self.camera.camera_off)))
+
             player2_mousex = client_sock.recv(4)
             player2_mouse_posx = struct.unpack("!f", player2_mousex)
 
@@ -166,6 +196,11 @@ class Game:
             self.char2_rect.x = player2_locx[0]
             self.char2_rect.y = player2_locy[0]
 
+            client_sock.sendall(struct.pack("!f", player2_locx[0]))
+
+            player2_randy = client_sock.recv(4)
+            p2_randy = struct.unpack("!f", player2_randy)
+
             self.char.p2_mouse_key = (bool(player2_mouse_bool[0]),0,0)
             self.char.p2_img_pos[0] = player2_locx[0]
             self.char.p2_img_pos[1] = player2_locy[0]
@@ -181,6 +216,22 @@ class Game:
             self.char.p2_offset = pygame.math.Vector2(p2_offsetx[0], p2_offsety[0])
 
             p2_rotate_img, p2_rotate_rect = self.char.rotate(scale_arm, self.char.p2_angle, self.char.p2_pivot, self.char.p2_offset, self.char.p2_mouse_key, self.char.p2_inc_scale_arm)
+
+            self.hooky = p2_randy[0]
+
+            far_playerx = max(self.char.rect.x, self.char.p2_img_pos[0])
+
+            if (far_playerx > self.hookx-600 and self.race_width - self.char.rect.x > 300):
+                self.spawnHook(self.hookx, self.hooky)
+                self.hookx += 500
+ 
+
+            #for coords in self.world_hooks:
+            #    self.hook_rect.x = coords[0]
+            #    self.hook_rect.y = coords[1]
+            #    self.char.mask_collision(self.char.rotate_mask, self.hook_mask, self.char.rotate_rect, self.hook_rect, self.camera)
+
+
 
             self.game_window.fill((2, 0, 68))
 
@@ -242,15 +293,17 @@ class Game:
                 
                 self.char.move(self.objects.floor_rect, self.objects.left_wall_rect, self.objects.left_wall_mask, self.camera, self.fall, player_num)
                 self.objects.update(self.camera, self.char)
-                self.grab_obj.generateObj()
-                self.grab_obj2.generateObj()
-                self.grab_obj3.generateObj()
-                #self.camera.object_offset(self.objects, self.char, self.grab_obj, self.fall)
-                #self.camera.object_offset(self.objects, self.char, self.grab_obj2, self.fall)
-                #self.camera.object_offset(self.objects, self.char, self.grab_obj3, self.fall)
+                #self.grab_obj.generateObj()
+                #self.grab_obj2.generateObj()
+                #self.grab_obj3.generateObj(self.hook_rect, self.hook_mask)
+                self.camera.object_offset(self.objects, self.char, self.grab_obj, self.fall)
+                self.camera.object_offset(self.objects, self.char, self.grab_obj2, self.fall)
+                self.camera.object_offset(self.objects, self.char, self.grab_obj3, self.fall)
 
-   
-                self.game_window.blit(self.char2, self.char2_rect)
+                if (self.camera.camera_off):
+                    self.game_window.blit(self.char2, (self.char2_rect.x-self.camera.cam_offset_prev, self.char2_rect.y))
+                else:
+                    self.game_window.blit(self.char2, (self.char2_rect.x-self.camera.offset.x, self.char2_rect.y))
 
                 if (self.char.arm_collide and self.store_cond == False):
 
@@ -278,10 +331,41 @@ class Game:
                     self.store_score += 1
                     self.score_inc = True
             
-            self.game_window.blit(p2_rotate_img, p2_rotate_rect)
+            #if (self.camera.camera_off):
+            #    self.game_window.blit(p2_rotate_img, (p2_rotate_rect.x-self.camera.cam_offset_prev, p2_rotate_rect.y))
+            #else:
+            #    self.game_window.blit(p2_rotate_img, (p2_rotate_rect.x-self.camera.offset.x, p2_rotate_rect.y))
+
+            #if (self.char.rotate_mask != 0 and self.char.rotate_rect != 0):
+            #    self.char.mask_collision(self.char.rotate_mask, self.hook_mask, self.char.rotate_rect, self.hook_rect, self.camera)
+
+            for coords in self.world_hooks:
+                self.hook_rect.x = coords[0]
+                self.hook_rect.y = coords[1]
+
+                self.rod_rect.x = coords[0] + 5
+                self.rod_rect.y = coords[1] - 492
+
+                if (self.char.rotate_mask != None):
+                    self.char.mask_collision(self.char.rotate_mask, self.hook_mask, self.char.rotate_rect, self.hook_rect, self.camera)
+
+                if (self.camera.camera_off):
+                    self.game_window.blit(self.hook, (self.hook_rect.x-self.camera.cam_offset_prev, self.hook_rect.y))
+                    self.game_window.blit(self.obj_rod, (self.rod_rect.x-self.camera.cam_offset_prev, self.rod_rect.y))
+                else:
+                    self.game_window.blit(self.hook, (self.hook_rect.x-self.camera.offset.x, self.hook_rect.y))
+                    self.game_window.blit(self.obj_rod, (self.rod_rect.x-self.camera.offset.x, self.rod_rect.y))
+
+            if (self.race_width - self.char.rect.x < 600):
+                self.finish_rect.x = self.race_width+600
+                self.game_window.blit(self.finish_line, (self.finish_rect.x-self.camera.cam_offset_prev, self.finish_rect.y))
+
+            if (self.char.rect.colliderect(self.finish_rect)):
+                self.complete = True
 
             #debug(f"Score: {self.store_score} High Score: {self.store_high_score}", self.game_window)
-            debug([self.char2_rect.y, p2_rotate_rect.y], self.game_window)
+            #debug([self.camera.camera_off, self.camera.prev_value, self.char.rect.x], self.game_window)
+            debug([self.race_width, self.char.rect.x, self.race_width - self.char.rect.x, self.finish_rect.x, self.complete], self.game_window)
 
             pygame.display.update()
 

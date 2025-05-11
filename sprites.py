@@ -52,6 +52,16 @@ class Camera:
                 self.cam_offset_prev = self.offset.x
                 self.prev_cond = True
 
+        if (self.prev_cond == False):
+            self.prev_value = player_rect.x
+            self.cam_offset_prev = self.offset.x
+            self.prev_cond = True
+
+        #if (self.prev_cond == False):
+        #    self.prev_value = player_rect.x
+        #    self.cam_offset_prev = self.offset.x
+        #    self.prev_cond = True
+
         if (player_rect.x < self.prev_value):
             self.camera_off = True
 
@@ -383,12 +393,12 @@ class Player:
                         self.grab_velocity.x = 0
                         self.grab_velocity.y = 0
 
-    def mask_collision(self, rotate_mask, grab_mask, rotate_rect, grab_rect, object_offset_x, camera):
+    def mask_collision(self, rotate_mask, grab_mask, rotate_rect, grab_rect, camera):
 
         rotate_mask_img = rotate_mask.to_surface(setcolor=(255, 255, 255), unsetcolor=(0, 0, 0, 0))
 
-        if (grab_rect.x > 800):
-            mask_offset_x = rotate_rect.left - (grab_rect.x+object_offset_x)
+        if (grab_rect.x > 200):
+            mask_offset_x = rotate_rect.left - (grab_rect.x)
             mask_offset_y = rotate_rect.top - grab_rect.y
 
             if (grab_mask.overlap(rotate_mask, (mask_offset_x, mask_offset_y)) and self.overlap_count == 0):
@@ -397,12 +407,10 @@ class Player:
                 self.arm_collide = True
 
                 overlap_rects = temp_mask.get_bounding_rects()
-                self.grab_coords[0] = overlap_rects[0].x + (grab_rect.x+object_offset_x)
+                self.grab_coords[0] = overlap_rects[0].x + (grab_rect.x)
                 self.grab_coords[1] = overlap_rects[0].y + grab_rect.y
                 self.grab_lock = True
                 self.overlap_count += 1
-
-                
 
 class Objects:
     def __init__(self, width, height, screen, background_img):
@@ -429,7 +437,7 @@ class Objects:
         self.floor = pygame.image.load('images/floor_cliff.png')
         self.floor = pygame.transform.scale(self.floor, (1920, 500))
         self.floor_rect = self.floor.get_rect()
-        self.floor_rect.x = -1000
+        #self.floor_rect.x = -1000
         self.floor_rect.y = self.height/1.25
 
         self.grab_object = pygame.image.load('images/test_grab.png')
@@ -507,9 +515,10 @@ class GrabObject:
         self.temp_object = pygame.image.load('images/hook_sprite.png')
         self.temp_object = pygame.transform.scale(self.temp_object, (50,50))
         self.temp_rect = self.temp_object.get_rect()
-        self.temp_mask = pygame.mask.from_surface(self.temp_object)
         self.temp_rect.x = self.width//2
         self.temp_rect.y = self.height//2
+        self.temp_mask = pygame.mask.from_surface(self.temp_object)
+        self.temp_mask_img = self.temp_mask.to_surface(setcolor=(255, 255, 255), unsetcolor=(0, 0, 0, 0))
 
         self.obj_rod = pygame.image.load('images/fish_rod.png')
         self.obj_rod = pygame.transform.scale(self.obj_rod, (50, 500))
@@ -542,40 +551,46 @@ class GrabObject:
         self.crab_coll = 0
 
 
-    def generateObj(self):
+    def generateObj(self, hook_rect, hook_mask):
 
         grab_obj_loc = self.grab_rect.x-self.camera.offset.x
 
-        if (grab_obj_loc < -50):
-            self.grab_rect.x += self.width+50
-            self.rod_rect.x += self.width+50
-            self.crab_rect.x += self.width+50
-            self.check_crab_coll = False
+        #if (grab_obj_loc < -50):
+        #    self.grab_rect.x += self.width+50
+        #    self.rod_rect.x += self.width+50
+        #    self.crab_rect.x += self.width+50
+        #    self.check_crab_coll = False
 
-        self.player.mask_collision(self.player.rotate_mask, self.grab_mask, self.player.rotate_rect, self.grab_rect, self.object_offset_x, self.camera)
+        self.player.mask_collision(self.player.rotate_mask, hook_mask, self.player.rotate_rect, hook_rect, self.camera)
+        #self.player.mask_collision(self.player.rotate_mask, self.temp_mask, self.player.rotate_rect, self.temp_rect, self.object_offset_x, self.camera)
+
         self.crab_collision()
 
+        
         if (self.grab_rect.x > 800):
             if (self.camera.camera_off):
                 self.screen.blit(self.obj_rod,((self.rod_rect.x-self.camera.cam_offset_prev), self.rod_rect.y))
-                self.screen.blit(self.grab_mask_img, ((self.grab_rect.x-self.camera.cam_offset_prev), self.grab_rect.y))
-                self.screen.blit(self.grab_object, ((self.grab_rect.x-self.camera.cam_offset_prev), self.grab_rect.y))
+                #self.screen.blit(self.grab_mask_img, ((hook_rect.x-self.camera.cam_offset_prev), hook_rect.y))
+                self.screen.blit(self.grab_object, ((hook_rect.x-self.camera.cam_offset_prev), hook_rect.y))
 
-                if (self.check_crab_coll == False):
-                    self.screen.blit(self.crab_mask_img, ((self.crab_rect.x-self.camera.cam_offset_prev), self.crab_rect.y))
-                    self.screen.blit(self.crab, ((self.crab_rect.x-self.camera.cam_offset_prev), self.crab_rect.y))
+                #self.screen.blit(self.temp_mask_img, ((self.temp_rect.x-self.camera.cam_offset_prev), self.temp_rect.y))
+
+                #if (self.check_crab_coll == False):
+                #    self.screen.blit(self.crab_mask_img, ((self.crab_rect.x-self.camera.cam_offset_prev), self.crab_rect.y))
+                #   self.screen.blit(self.crab, ((self.crab_rect.x-self.camera.cam_offset_prev), self.crab_rect.y))
             else:
                 self.screen.blit(self.obj_rod,((self.rod_rect.x-self.camera.offset.x), self.rod_rect.y))
-                self.screen.blit(self.grab_mask_img, ((self.grab_rect.x-self.camera.offset.x), self.grab_rect.y))
-                self.screen.blit(self.grab_object, ((self.grab_rect.x-self.camera.offset.x), self.grab_rect.y))
+                #self.screen.blit(self.grab_mask_img, ((hook_rect.x-self.camera.offset.x), hook_rect.y))
+                self.screen.blit(self.grab_object, ((hook_rect.x-self.camera.offset.x), hook_rect.y))
 
-                if (self.check_crab_coll == False):
-                    self.screen.blit(self.crab_mask_img, ((self.crab_rect.x-self.camera.offset.x), self.crab_rect.y))
-                    self.screen.blit(self.crab, ((self.crab_rect.x-self.camera.offset.x), self.crab_rect.y))
-                    
-        #self.screen.blit(self.temp_object, self.temp_rect)
+                #self.screen.blit(self.temp_mask_img, ((self.temp_rect.x-self.camera.offset.x), self.temp_rect.y))
+
+                #if (self.check_crab_coll == False):
+                #    self.screen.blit(self.crab_mask_img, ((self.crab_rect.x-self.camera.offset.x), self.crab_rect.y))
+                #    self.screen.blit(self.crab, ((self.crab_rect.x-self.camera.offset.x), self.crab_rect.y))
 
                 #self.screen.blit(self.crab, ((self.crab_rect.x-self.camera.offset.x), self.crab_rect.y))
+
         #debug(crab_coll, self.screen)
 
     def crab_collision(self):
