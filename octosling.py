@@ -108,6 +108,14 @@ class Game:
         cur_data = [curx, cury]
         self.world_hooks.append(cur_data)
 
+    def full_recv(self, socket, byte_stream):
+        data = b''
+
+        while (len(data) < byte_stream):
+            cur_data = socket.recv(byte_stream - len(data))
+            data += cur_data
+        return data
+
     def run(self):
 
         client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -123,99 +131,52 @@ class Game:
             left_key = mouse_key[0]
 
             mouse_posx, mouse_posy = pygame.mouse.get_pos()
-            client_sock.sendall(struct.pack("!f", mouse_posx))
-            client_sock.sendall(struct.pack("!f", mouse_posy))
-
-            client_sock.sendall(struct.pack("!B", int(left_key)))
 
             rect_x = self.char.rect.x
             rect_y = self.char.rect.y
 
-            client_sock.sendall(struct.pack("!f", rect_x))
-            client_sock.sendall(struct.pack("!f", rect_y))
-
             arm_angle = self.char.angle
-            client_sock.sendall(struct.pack("!f", arm_angle))
-        
 
             if (self.char.arm_pivot != 0):
                 self.arm_pivotx = self.char.arm_pivot[0]
                 self.arm_pivoty = self.char.arm_pivot[1]
 
-            client_sock.sendall(struct.pack("!f", self.arm_pivotx))
-
-            client_sock.sendall(struct.pack("!f", self.arm_pivoty))
-
             arm_inc_num = self.char.inc_scale_arm
-            client_sock.sendall(struct.pack("!f", arm_inc_num))
 
             if (self.char.arm_offset != 0):
                 self.offsetx = self.char.arm_offset.x
                 self.offsety = self.char.arm_offset.y
 
-            client_sock.sendall(struct.pack("!f", self.offsetx))
+            client_sock.sendall(struct.pack("!ffBffffffffB", mouse_posx, mouse_posy, int(left_key), rect_x, rect_y, arm_angle, self.arm_pivotx, self.arm_pivoty, arm_inc_num, self.offsetx, self.offsety, int(self.camera.camera_off)))
 
-            client_sock.sendall(struct.pack("!f", self.offsety))
+            server_pkt = self.full_recv(client_sock, 41)
+            unpack_server_pkt = struct.unpack("!ffBffffffff", server_pkt)
+            
+            (player2_mouse_posx, player2_mouse_posy, player2_mouse_bool, player2_locx, player2_locy,
+            p2_angle, p2_pivotx, p2_pivoty, p2_inc_num,
+            p2_offsetx, p2_offsety) = unpack_server_pkt
 
-            client_sock.sendall(struct.pack("!B", int(self.camera.camera_off)))
+            self.char2_rect.x = player2_locx
+            self.char2_rect.y = player2_locy
 
-            #client_sock.sendall(struct.pack("!ffBffffffffB"), mouse_posx, mouse_posy, int(left_key), rect_x, rect_y, arm_angle, self.arm_pivotx, self.arm_pivoty, arm_inc_num, self.offsetx, self.offsety, int(self.camera.camera_off))
-
-            player2_mousex = client_sock.recv(4)
-            player2_mouse_posx = struct.unpack("!f", player2_mousex)
-
-            player2_mousey = client_sock.recv(4)
-            player2_mouse_posy = struct.unpack("!f", player2_mousey)
-
-            player2_mouse_click = client_sock.recv(1)
-            player2_mouse_bool = struct.unpack("!B", player2_mouse_click)
-            self.char.p2_mouse_key = player2_mouse_bool[0]
-
-            self.player2_posx = client_sock.recv(4)
-            player2_locx = struct.unpack("!f", self.player2_posx)
-
-            self.player2_posy = client_sock.recv(4)
-            player2_locy = struct.unpack("!f", self.player2_posy)
-
-            player2_angle = client_sock.recv(4)
-            p2_angle = struct.unpack("!f", player2_angle)
-
-            player2_pivotx = client_sock.recv(4)
-            p2_pivotx = struct.unpack("!f", player2_pivotx)
-
-            player2_pivoty = client_sock.recv(4)
-            p2_pivoty = struct.unpack("!f", player2_pivoty)
-
-            player2_inc_num = client_sock.recv(4)
-            p2_inc_num = struct.unpack("!f", player2_inc_num)
-
-            player2_offsetx = client_sock.recv(4)
-            p2_offsetx = struct.unpack("!f", player2_offsetx)
-
-            player2_offsety = client_sock.recv(4)
-            p2_offsety = struct.unpack("!f", player2_offsety)
-
-            self.char2_rect.x = player2_locx[0]
-            self.char2_rect.y = player2_locy[0]
-
-            client_sock.sendall(struct.pack("!f", player2_locx[0]))
+            client_sock.sendall(struct.pack("!f", player2_locx))
 
             player2_randy = client_sock.recv(4)
             p2_randy = struct.unpack("!f", player2_randy)
 
-            self.char.p2_mouse_key = (bool(player2_mouse_bool[0]),0,0)
-            self.char.p2_img_pos[0] = player2_locx[0]
-            self.char.p2_img_pos[1] = player2_locy[0]
+            self.char.p2_mouse_key = (bool(player2_mouse_bool),0,0)
+            self.char.p2_img_pos[0] = player2_locx
+            self.char.p2_img_pos[1] = player2_locy
 
-            self.char.p2_angle = p2_angle[0]
-            self.char.p2_pivot = [p2_pivotx[0], p2_pivoty[0]]
-            self.char.p2_inc_scale_arm = p2_inc_num[0]
+            self.char.p2_angle = p2_angle
+            self.char.p2_pivot = [p2_pivotx, p2_pivoty]
+            self.char.p2_inc_scale_arm = p2_inc_num
 
             p2width = max(1, int(self.rotate_img.get_width()))
             p2height = max(1, self.char.p2_inc_scale_arm)
             scale_arm = pygame.transform.scale(self.rotate_img, (p2width, p2height))
 
-            self.char.p2_offset = pygame.math.Vector2(p2_offsetx[0], p2_offsety[0])
+            self.char.p2_offset = pygame.math.Vector2(p2_offsetx, p2_offsety)
 
             p2_rotate_img, p2_rotate_rect = self.char.rotate(scale_arm, self.char.p2_angle, self.char.p2_pivot, self.char.p2_offset, self.char.p2_mouse_key, self.char.p2_inc_scale_arm)
 
@@ -226,14 +187,6 @@ class Game:
             if (far_playerx > self.hookx-600 and self.race_width - self.char.rect.x > 300):
                 self.spawnHook(self.hookx, self.hooky)
                 self.hookx += 500
- 
-
-            #for coords in self.world_hooks:
-            #    self.hook_rect.x = coords[0]
-            #    self.hook_rect.y = coords[1]
-            #    self.char.mask_collision(self.char.rotate_mask, self.hook_mask, self.char.rotate_rect, self.hook_rect, self.camera)
-
-
 
             self.game_window.fill((2, 0, 68))
 
@@ -333,10 +286,10 @@ class Game:
                     self.store_score += 1
                     self.score_inc = True
             
-            #if (self.camera.camera_off):
-            #    self.game_window.blit(p2_rotate_img, (p2_rotate_rect.x-self.camera.cam_offset_prev, p2_rotate_rect.y))
-            #else:
-            #    self.game_window.blit(p2_rotate_img, (p2_rotate_rect.x-self.camera.offset.x, p2_rotate_rect.y))
+            if (self.camera.camera_off):
+                self.game_window.blit(p2_rotate_img, (p2_rotate_rect.x-self.camera.cam_offset_prev, p2_rotate_rect.y))
+            else:
+                self.game_window.blit(p2_rotate_img, (p2_rotate_rect.x-self.camera.offset.x, p2_rotate_rect.y))
 
             #if (self.char.rotate_mask != 0 and self.char.rotate_rect != 0):
             #    self.char.mask_collision(self.char.rotate_mask, self.hook_mask, self.char.rotate_rect, self.hook_rect, self.camera)

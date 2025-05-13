@@ -8,6 +8,14 @@ import time
 
 random.seed(time.time())
 
+def full_recv(socket, byte_stream):
+    data = b''
+
+    while (len(data) < byte_stream):
+        cur_data = socket.recv(byte_stream - len(data))
+        data += cur_data
+    return data
+
 def client_pos(sock_conn, sock_addr, client_num, clients_dict, hooky_lock):
     print(f"Client {client_num}")
     print(f"connected by {sock_addr}")
@@ -16,122 +24,73 @@ def client_pos(sock_conn, sock_addr, client_num, clients_dict, hooky_lock):
     
     while (True):
 
-        client_mouse_x = sock_conn.recv(4)
-        client_mouse_y = sock_conn.recv(4)
+        pkt = full_recv(sock_conn, 42)
+        unpack_pkt = struct.unpack("!ffBffffffffB", pkt)
 
-        client_mouse_press = sock_conn.recv(1)
-
-        client_data_posx = sock_conn.recv(4)
-        client_data_posy = sock_conn.recv(4)
-
-        client_arm_angle = sock_conn.recv(4)
-        client_arm_pivotx = sock_conn.recv(4)
-        client_arm_pivoty = sock_conn.recv(4)
-        client_arm_inc_num = sock_conn.recv(4)
-
-        client_offsetx = sock_conn.recv(4)
-        client_offsety = sock_conn.recv(4)
-
-        client_camera_off = sock_conn.recv(1)
+        (client_mouse_x, client_mouse_y, client_mouse_press,
+         client_data_posx, client_data_posy, client_arm_angle,
+         client_arm_pivotx, client_arm_pivoty, client_arm_inc_num,
+         client_offsetx, client_offsety, client_camera_off
+        ) = unpack_pkt
 
         if (not client_mouse_x):
             break
 
-        mousex = struct.unpack("!f", client_mouse_x)
-        mousey = struct.unpack("!f", client_mouse_y)
-
-        mouse_press = struct.unpack("!B", client_mouse_press)
-
-        rect_x = struct.unpack("!f", client_data_posx)
-        rect_y = struct.unpack("!f", client_data_posy)
-
-        arm_angle = struct.unpack("!f", client_arm_angle)
-        arm_pivotx = struct.unpack("!f", client_arm_pivotx)
-        arm_pivoty = struct.unpack("!f", client_arm_pivoty)
-        arm_inc_num = struct.unpack("!f", client_arm_inc_num)
-
-        offsetx = struct.unpack("!f", client_offsetx)
-        offsety = struct.unpack("!f", client_offsety)
-
-        camera_off = struct.unpack("!B", client_camera_off)
-
-        #if (client_num == 1 and camera_off[0] == 0):
-        #    clients_dict["hooky"] = random.randrange(200, 500)
-        #elif (client_num == 2 and camera_off[0] == 0):
-        #    clients_dict["hooky"] = random.randrange(200, 500)
-
-
         if (client_num == 1):
-            clients_dict["mouse_posx"][0] = mousex[0]
-            clients_dict["mouse_posy"][0] = mousey[0]
+            clients_dict["mouse_posx"][0] = client_mouse_x
+            clients_dict["mouse_posy"][0] = client_mouse_y
 
-            clients_dict["mouse_click"][0] = client_mouse_press[0]
+            clients_dict["mouse_click"][0] = client_mouse_press
 
-            clients_dict["player_posx"][0] = rect_x[0]
-            clients_dict["player_posy"][0] = rect_y[0]
+            clients_dict["player_posx"][0] = client_data_posx
+            clients_dict["player_posy"][0] = client_data_posy
 
-            clients_dict["angle"][0] = arm_angle[0]
-            clients_dict["pivotx"][0] = arm_pivotx[0]
-            clients_dict["pivoty"][0] = arm_pivoty[0]
-            clients_dict["inc_num"][0] = arm_inc_num[0]
+            clients_dict["angle"][0] = client_arm_angle
+            clients_dict["pivotx"][0] = client_arm_pivotx
+            clients_dict["pivoty"][0] = client_arm_pivoty
+            clients_dict["inc_num"][0] = client_arm_inc_num
 
-            clients_dict["offsetx"][0] = offsetx[0]
-            clients_dict["offsety"][0] = offsety[0]
+            clients_dict["offsetx"][0] = client_offsetx
+            clients_dict["offsety"][0] = client_offsety
 
         elif (client_num == 2):
-            clients_dict["mouse_posx"][1] = mousex[0]
-            clients_dict["mouse_posy"][1] = mousey[0]
+            clients_dict["mouse_posx"][1] = client_mouse_x
+            clients_dict["mouse_posy"][1] = client_mouse_y
 
-            clients_dict["mouse_click"][1] = client_mouse_press[0]
+            clients_dict["mouse_click"][1] = client_mouse_press
 
-            clients_dict["player_posx"][1] = rect_x[0]
-            clients_dict["player_posy"][1] = rect_y[0]
+            clients_dict["player_posx"][1] = client_data_posx
+            clients_dict["player_posy"][1] = client_data_posy
 
-            clients_dict["angle"][1] = arm_angle[0]
-            clients_dict["pivotx"][1] = arm_pivotx[0]
-            clients_dict["pivoty"][1] = arm_pivoty[0]
-            clients_dict["inc_num"][1] = arm_inc_num[0]
+            clients_dict["angle"][1] = client_arm_angle
+            clients_dict["pivotx"][1] = client_arm_pivotx
+            clients_dict["pivoty"][1] = client_arm_pivoty
+            clients_dict["inc_num"][1] = client_arm_inc_num
 
-            clients_dict["offsetx"][1] = offsetx[0]
-            clients_dict["offsety"][1] = offsety[0]
+            clients_dict["offsetx"][1] = client_offsetx
+            clients_dict["offsety"][1] = client_offsety
 
 
         print(f"Received from clients: {clients_dict['player_posx']}")
 
         if (client_num == 1):
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["mouse_posx"][1])))
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["mouse_posy"][1])))
-
-            sock_conn.sendall(struct.pack("!B", clients_dict["mouse_click"][1]))
-
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["player_posx"][1])))
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["player_posy"][1])))
-
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["angle"][1])))
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["pivotx"][1])))
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["pivoty"][1])))
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["inc_num"][1])))
-
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["offsetx"][1])))
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["offsety"][1])))
+            sock_conn.sendall(struct.pack("!ffBffffffff", float(clients_dict["mouse_posx"][1]), float(clients_dict["mouse_posy"][1]),
+                                                                clients_dict["mouse_click"][1], float(clients_dict["player_posx"][1]),
+                                                                float(clients_dict["player_posy"][1]), float(clients_dict["angle"][1]),
+                                                                float(clients_dict["pivotx"][1]), float(clients_dict["pivoty"][1]),
+                                                                float(clients_dict["inc_num"][1]), float(clients_dict["offsetx"][1]),
+                                                                float(clients_dict["offsety"][1])
+                                                                ))
 
 
         elif (client_num == 2):
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["mouse_posx"][0])))
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["mouse_posy"][0])))
-
-            sock_conn.sendall(struct.pack("!B", clients_dict["mouse_click"][0]))
-
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["player_posx"][0])))
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["player_posy"][0])))
-
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["angle"][0])))
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["pivotx"][0])))
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["pivoty"][0])))
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["inc_num"][0])))
-
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["offsetx"][0])))
-            sock_conn.sendall(struct.pack("!f", float(clients_dict["offsety"][0])))
+            sock_conn.sendall(struct.pack("!ffBffffffff", float(clients_dict["mouse_posx"][0]), float(clients_dict["mouse_posy"][0]),
+                                                                clients_dict["mouse_click"][0], float(clients_dict["player_posx"][0]),
+                                                                float(clients_dict["player_posy"][0]), float(clients_dict["angle"][0]),
+                                                                float(clients_dict["pivotx"][0]), float(clients_dict["pivoty"][0]),
+                                                                float(clients_dict["inc_num"][0]), float(clients_dict["offsetx"][0]),
+                                                                float(clients_dict["offsety"][0])
+                                                                ))
 
         client_p2_x = sock_conn.recv(4)
         p2_x = struct.unpack("!f", client_p2_x)
