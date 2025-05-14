@@ -121,6 +121,11 @@ class Game:
         client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_sock.connect((self.ip, 8080))
 
+        client_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+        client_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024)
+        client_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024)
+
         client_num = client_sock.recv(4)
         player_num = struct.unpack("!f", client_num)
         player_num = player_num[0] #use player_num on .move for self.char (could be 1 or 2)
@@ -320,7 +325,7 @@ class Game:
 
             #debug(f"Score: {self.store_score} High Score: {self.store_high_score}", self.game_window)
             #debug([self.camera.camera_off, self.camera.prev_value, self.char.rect.x], self.game_window)
-            debug([self.race_width, self.char.rect.x, self.race_width - self.char.rect.x, self.finish_rect.x, self.complete], self.game_window)
+            #debug([self.race_width, self.char.rect.x, self.race_width - self.char.rect.x, self.finish_rect.x, self.complete], self.game_window)
 
             pygame.display.update()
 

@@ -197,11 +197,14 @@ class Player:
         self.store_prev_mouse_x = mouse_posx
 
         if (camera.camera_off):
-            mouse_posx = self.store_prev_mouse_x + camera.cam_offset_prev
+            mouse_posx = mouse_posx + camera.cam_offset_prev 
         else:
             mouse_posx = mouse_posx + camera.offset.x
-        self.arm_rect.center = (self.img_pos[0]+15, self.img_pos[1]+48)
-        pivot = [self.arm_rect.x, self.arm_rect.y]
+            mouse_posy = mouse_posy
+
+        #self.arm_rect.center = (self.img_pos[0]+15, self.img_pos[1]+48)
+        #pivot = [self.arm_rect.x, self.arm_rect.y]
+        pivot = pygame.math.Vector2(self.img_pos[0]+12, self.img_pos[1]+34)
         self.arm_pivot = pivot
 
         if (self.grab_lock == True):
@@ -243,16 +246,15 @@ class Player:
                 self.img_pos[1] += self.grab_velocity.y * self.dt
 
             if (self.inc_scale_arm >= mouse_length):
-                self.inc_scale_arm = min(mouse_length, 300)
                 self.stored_grab = True
             elif (self.inc_scale_arm >= 1000):
                 self.inc_scale_arm = 1000
                 self.stored_grab = True
             
             if (self.stored_grab == True and self.inc_scale_arm > 20):
-                self.inc_scale_arm -= 1200 * self.dt
-            elif (self.stored_grab == False):
-                self.inc_scale_arm += 1700 * self.dt
+                self.inc_scale_arm -= 800 * self.dt
+            if (self.stored_grab == False):
+                self.inc_scale_arm += 1200 * self.dt
 
         elif (mouse_key[0]== False):
             self.gravity = 1400

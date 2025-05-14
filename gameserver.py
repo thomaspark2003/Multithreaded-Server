@@ -176,6 +176,10 @@ def main():
         while(True):
 
             sock_conn, sock_addr = server_sock.accept()
+            server_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+            server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024)
+            server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024)
 
             player_thread = threading.Thread(target=client_pos, args=(sock_conn, sock_addr, client_num, clients_dict, hooky_lock), daemon=True)
             player_thread.start()
